@@ -31,6 +31,7 @@ class mplCanvas(QtGui.QWidget):
         self.figure = plt.figure(figsize=(width, height), dpi=dpi, facecolor=bgcolor)
         self.axes = self.figure.add_subplot(111)
         self.axes.hold(False)
+        self.index = 0
         # this is the Canvas Widget that displays the `figure`
         # it takes the `figure` instance as a parameter to __init__
         self.canvas = FigureCanvas(self.figure)
@@ -42,14 +43,19 @@ class mplCanvas(QtGui.QWidget):
         # it takes the Canvas widget and a parent
         self.toolbar = NavigationToolbar(self.canvas, self)
 
-        # Just some button connected to `plot` method
-        self.button = QtGui.QPushButton('Plot', parent=self)
+        # Just some plotButton connected to `plot` method
+        self.plotButton = QtGui.QPushButton('Plot', parent=self)
+        self.exportButton = QtGui.QPushButton('Export', parent=self)
 
         # set the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
-        layout.addWidget(self.button)
+
+        buttonHBox = QtGui.QHBoxLayout()
+        buttonHBox.addWidget(self.plotButton)
+        buttonHBox.addWidget(self.exportButton)
+        layout.addLayout(buttonHBox)
         self.setLayout(layout)
 
 
@@ -362,8 +368,11 @@ class AppWindow(QtGui.QMainWindow):
         position = [[1, 0], [2, 0], [1, 1], [2, 1]]
         for i in range(numPanel):
             canvas = mplCanvas(self, dpi=self.dpi)
-            canvas.button.clicked.connect(lambda: self.calPlot(i))
+            canvas.plotButton.clicked.connect(self.calPlot)
+            canvas.exportButton.clicked.connect(self.exportData)
+            canvas.index = i
             self.canvasList.append(canvas)
+            self.resultList.append({})
             self.grid.addWidget(canvas, position[i][0], position[i][1])
             # canvas.draw()
         self.vboxRight.addLayout(self.grid)
@@ -412,9 +421,9 @@ class AppWindow(QtGui.QMainWindow):
         errBox.setWindowTitle('Error message')
         errBox.setStandardButtons(QtGui.QMessageBox.Ok)
 
-    def calPlot(self, idx):
-        print idx
+    def calPlot(self):
         canvas = self.sender().parent()
+        print canvas.index
         nuMin = float(self.minNu.text())
         nuMax = float(self.maxNu.text())
         numPt = int(self.numPt.text())
@@ -435,6 +444,8 @@ class AppWindow(QtGui.QMainWindow):
                 specCal.plotDas(canvas.axes, dasResults, mode,
                                 showTotal=self.plotTotalCheck.isChecked())
                 self.statusBar().showMessage('Done.')
+            self.resultList[canvas.index] = dasResults
+
         else:
             method = self.wmsMethod.currentText()
             dNu = float(self.leWmsMod.text())
@@ -465,9 +476,22 @@ class AppWindow(QtGui.QMainWindow):
                 self.statusBar().showMessage('Done.')
                 specCal.plotWms(canvas.axes, wmsResults,
                                 showTotal=self.plotTotalCheck.isChecked())
+            self.resultList[canvas.index] = wmsResults
+
         canvas.figure.tight_layout()
         canvas.canvas.draw()
         canvas.canvas.updateGeometry()
+
+    def exportData(self):
+        canvas = self.sender().parent()
+        filename, pat = QtGui.QFileDialog.getSaveFileNameAndFilter(self, "Export "
+                                                                        "data "
+                                                                    "to csv file",
+                                                              "output.csv",
+                                                              filter=self.tr("CSV "
+                                                                             "files (*.csv)"))
+        specCal.csvOutput(filename, self.resultList[canvas.index])
+
 
     def updateCanvasGeometry(self):
         for canvas in self.canvasList:

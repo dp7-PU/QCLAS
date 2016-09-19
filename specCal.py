@@ -239,7 +239,7 @@ def plotDas(ax, results, mode, showTotal=True):
         spectrum = result[
             'spectrum']  # spectrum could be absorption spectrum, absorbance,
         # or transmittance
-        if mode == 'Absorp spectrum':
+        if mode == 'Absorp coeff':
             ax.plot(nu, spectrum, label=strGasParams(gasParams))
         elif mode == 'Absorbance':
             ax.plot(nu, spectrum, label=strGasParams(gasParams))
@@ -262,7 +262,7 @@ def plotDas(ax, results, mode, showTotal=True):
         leg = ax.legend(fontsize=11, loc=3, frameon=False)
     elif mode == 'Absorp coeff':
         if showTotal:
-            ax.set_ylabel('Absorp spectrum')
+            ax.set_ylabel('Absorp coeff')
         leg = ax.legend(fontsize=11, loc=2, frameon=False)
     formatter = ticker.ScalarFormatter(useMathText=True)
     if leg:
