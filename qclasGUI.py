@@ -106,6 +106,9 @@ class AppWindow(QtGui.QMainWindow):
         self.laserMenu = QtGui.QMenu('&Laser Config')
         self.laserMenu.addAction(loadLaserFile)
 
+        # Save results menu
+        # saveResults = QtGui.QAction('&')
+
         self.menuBar().addMenu(self.HapiMenu)
         self.menuBar().addMenu(self.laserMenu)
 
@@ -354,11 +357,12 @@ class AppWindow(QtGui.QMainWindow):
             canvas.close()
             canvas.setParent(None)
         self.canvasList = []
+        self.resultList = []
 
         position = [[1, 0], [2, 0], [1, 1], [2, 1]]
         for i in range(numPanel):
             canvas = mplCanvas(self, dpi=self.dpi)
-            canvas.button.clicked.connect(self.calPlot)
+            canvas.button.clicked.connect(lambda: self.calPlot(i))
             self.canvasList.append(canvas)
             self.grid.addWidget(canvas, position[i][0], position[i][1])
             # canvas.draw()
@@ -408,7 +412,8 @@ class AppWindow(QtGui.QMainWindow):
         errBox.setWindowTitle('Error message')
         errBox.setStandardButtons(QtGui.QMessageBox.Ok)
 
-    def calPlot(self):
+    def calPlot(self, idx):
+        print idx
         canvas = self.sender().parent()
         nuMin = float(self.minNu.text())
         nuMax = float(self.maxNu.text())
