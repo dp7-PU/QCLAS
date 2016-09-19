@@ -260,7 +260,7 @@ def plotDas(ax, results, mode, showTotal=True):
             ax.plot(nu, sumTrans, label='Total')
         ax.set_ylabel('Transmission')
         leg = ax.legend(fontsize=11, loc=3, frameon=False)
-    elif mode == 'Absorp spectrum':
+    elif mode == 'Absorp coeff':
         if showTotal:
             ax.set_ylabel('Absorp spectrum')
         leg = ax.legend(fontsize=11, loc=2, frameon=False)
