@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 from scipy.integrate import simps, romb
 from scipy.signal import butter, lfilter
+import csv
 
 kb = 1.38064852e-23  # Boltzmann constant, m^2 kg s^-2 K^-1
 nA = 6.022e23  # Avogadro's number molec/mol-1
@@ -569,6 +570,27 @@ def strGasParams(gasParams):
         'gas'] + r'@(' + str(
         gasParams['p']) + 'hPa, ' + str(gasParams['t']) + 'K)'
 
+def csvOutput(csvFile, results, specType):
+    """
+    Output spectra to the given csv file.
+    Parameters
+    ----------
+    csvFile: str
+        Output file name.
+    results: dict
+        Results from calWms or calDas.
+    specType: str
+        Choose between 'WMS' and 'DAS'.
+
+    Returns
+    -------
+    error: bool
+        If there's an error, will return True.
+    """
+    with open(csvFile, 'wb') as f:
+        csvWriter = csv.writer(f, delimiter=',')
+        if specType == 'WMS':
+            csvWriter.writerow()
 
 def main():
     """
@@ -578,6 +600,7 @@ def main():
     -------
 
     """
+
     hapi.db_begin_pickle('./Data')
     print 'specCal is package from spectroscopy calculation for QCL spectroscopy.'
 

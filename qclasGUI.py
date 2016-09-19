@@ -444,9 +444,10 @@ class AppWindow(QtGui.QMainWindow):
                                                               'laser configuration.')
                     wmsResults = 'No laser configuration.'
                 else:
-                    self.laserSpec['central_wavelength'] = (nuMin + nuMax)/2.
+                    self.laserSpec['central_wavelength'] = (nuMin + nuMax) / 2.
                     self.laserSpec['aRamp'] = (nuMax -
-                                               nuMin)/200*1e3/self.laserSpec['tRamp']
+                                               nuMin) / 200 * 1e3 / self.laserSpec[
+                                                  'tRamp']
                     wmsResults = specCal.calWms(gasParamsList, nu, profile, nf,
                                                 'Simulation with parameters',
                                                 laserSpec=self.laserSpec)
@@ -500,10 +501,6 @@ def resource_path(relative):
 
 def main():
     filename = 'defaultSettings.txt'
-    cwd = os.getcwd()
-    settingFile = resource_path(os.path.join(cwd, filename))
-    defaultSetting = {'dbDir': './Data'}
-    hapi.db_begin_pickle(defaultSetting['dbDir'])
     app = QtGui.QApplication(sys.argv)
     appWindow = AppWindow()
     appWindow.show()
