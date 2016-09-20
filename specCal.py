@@ -27,6 +27,16 @@ Edited Dates
 
 07/26/2016 by Da Pan:
     Docstrings added for all functions.
+
+08/18/2016 by Da Pan:
+    Added etalon generation function.
+
+09/17/2016 by Da Pan:
+    Added save to csv function.
+
+09/19/2016 by Da Pan:
+    Added unit handler.
+
 """
 
 import hapi
@@ -118,8 +128,8 @@ def read_config(config_name):
     return config
 
 
-def calDas(gasList, nu, profile, mode, iCut=1e-30, xi_to_nden=True,
-           mden_to_nden=False, etalonCoeff=None):
+def calDas(gasList, nu, profile, mode, iCut=1e-30, etalonCoeff=None,
+           unitDict={'c': 'V ratio', 'p': 'hPa', 't': 'K', 'l': 'cm'}):
     """
     Calculate direction absorption spectrum.
     Parameters
@@ -136,10 +146,6 @@ def calDas(gasList, nu, profile, mode, iCut=1e-30, xi_to_nden=True,
         Choose one from 'Absorbance', 'Transmission', 'Absorb coeff'.
     iCut: float
         Intensity cut threshold.
-    xi_to_nden: bool
-        If true, will convert given concentration to number density.
-    mden_to_nden: bool
-        If True, will convert given molar density to number density.
     etalonCoeff: list of dict
         Results from generateEtalons, containing coefficients for etalon calculation.
 
@@ -162,14 +168,7 @@ def calDas(gasList, nu, profile, mode, iCut=1e-30, xi_to_nden=True,
                 'Cannot find lines within specified wavenumber range, please download data.')
         Cond = ('AND', ('BETWEEN', 'nu', np.min(nu), np.max(nu)), ('>=', 'sw', iCut))
         hapi.select(gasParams['gas'], Conditions=Cond, DestinationTableName='tmp')
-        p = gasParams['p'] / 1.013e3
-        t = float(gasParams['t'])
-
-        # Convert concentration to number density.
-        if xi_to_nden:
-            n = mixRatio2numDen(gasParams['c'], p, gasParams['t'])
-        if mden_to_nden:
-            n = nA * gasParams['c'] * 1e-6
+        p, t, l, n = unitHandler(gasParams, unitDict)
 
         if profile == 'Voigt':
             nu, coeff = hapi.absorptionCoefficient_Voigt(SourceTables='tmp',
@@ -196,9 +195,9 @@ def calDas(gasList, nu, profile, mode, iCut=1e-30, xi_to_nden=True,
         else:
             raise Exception('No suitable profile.')
         if mode == 'Absorbance':
-            coeff = coeff * n * gasParams['l']
+            coeff = coeff * n * l
         elif mode == 'Transmission':
-            coeff = coeff * n * gasParams['l']
+            coeff = coeff * n * l
             coeff = np.exp(-coeff)
         hapi.dropTable('tmp')
         result = dict()
@@ -209,7 +208,9 @@ def calDas(gasList, nu, profile, mode, iCut=1e-30, xi_to_nden=True,
     return results
 
 
-def plotDas(ax, results, mode, showTotal=True):
+def plotDas(ax, results, mode, showTotal=True,
+            iCut=1e-30, diag=False,
+            unitDict={'c': 'V ratio', 'p': 'hPa', 't': 'K', 'l': 'cm'}):
     """
     Plot direction absorption spectroscopy results from calDas.
 
@@ -240,13 +241,13 @@ def plotDas(ax, results, mode, showTotal=True):
             'spectrum']  # spectrum could be absorption spectrum, absorbance,
         # or transmittance
         if mode == 'Absorp coeff':
-            ax.plot(nu, spectrum, label=strGasParams(gasParams))
+            ax.plot(nu, spectrum, label=strGasParams(gasParams, unitDict))
         elif mode == 'Absorbance':
-            ax.plot(nu, spectrum, label=strGasParams(gasParams))
+            ax.plot(nu, spectrum, label=strGasParams(gasParams, unitDict))
             sumAbsorp = sumAbsorp + spectrum
             # print(strGasParams(gasParams))
         elif mode == 'Transmission':
-            ax.plot(nu, spectrum, label=strGasParams(gasParams))
+            ax.plot(nu, spectrum, label=strGasParams(gasParams, unitDict))
             sumTrans = sumTrans * spectrum
         if idx == 0:
             ax.hold(True)
@@ -279,7 +280,8 @@ def plotDas(ax, results, mode, showTotal=True):
 
 
 def calWms(gasList, nu, profile, nf, method='Theoretical', laserSpec=None, dNu=None,
-           iCut=1e-30, diag=False, xi_to_nden=True, mden_to_nden=False):
+           iCut=1e-30, diag=False,
+           unitDict={'c': 'V ratio', 'p': 'hPa', 't': 'K', 'l': 'cm'}):
     """
     Calculate spectra using wavelength modulation spectroscopy. This function
     calls calDas. Two methods are provided. The 'theoretical' method is based on
@@ -329,7 +331,8 @@ def calWms(gasList, nu, profile, nf, method='Theoretical', laserSpec=None, dNu=N
     if method == 'Theoretical':
         hdNu = np.linspace(minNu, maxNu, int((maxNu - minNu) / dNu * 1024) + 1)
 
-        dasResults = calDas(gasList, hdNu, profile, 'Transmission', iCut)
+        dasResults = calDas(gasList, hdNu, profile, 'Transmission', iCut,
+                            unitDict=unitDict)
         if type(dasResults) is str:
             return dasResults
         wmsResults = []
@@ -392,7 +395,7 @@ def calWms(gasList, nu, profile, nf, method='Theoretical', laserSpec=None, dNu=N
 
         wmsResults = []
         dasResults = calDas(gasList, nu, profile, 'Transmission', iCut,
-                            xi_to_nden=xi_to_nden, mden_to_nden=mden_to_nden)
+                            unitDict=unitDict)
 
         if type(dasResults) is str:
             return dasResults
@@ -484,7 +487,9 @@ def peakTroughHeight(signal, startIdx, endIdx, twoSideTrough=True, avgWindow=50)
             tmpSignal[rTroughIdx - hWindow:rTroughIdx + hWindow]))
 
 
-def plotWms(ax, results, showTotal=True):
+def plotWms(ax, results, showTotal=True,
+            iCut=1e-30, diag=False,
+            unitDict={'c': 'V ratio', 'p': 'hPa', 't': 'K', 'l': 'cm'}):
     """
     Plot results from calWMS.
 
@@ -506,7 +511,7 @@ def plotWms(ax, results, showTotal=True):
         nu = result['nu']
         spectrum = result['spectrum']
         gasParams = result['gasParams']
-        ax.plot(nu, spectrum, label=strGasParams(gasParams))
+        ax.plot(nu, spectrum, label=strGasParams(gasParams, unitDict))
         sumWms = sumWms + spectrum
         if idx == 0:
             ax.hold(True)
@@ -551,7 +556,7 @@ def generateEtalons(etalonParams):
     return etalonCoeffs
 
 
-def strGasParams(gasParams):
+def strGasParams(gasParams, unitDict):
     """
     Combine gas parameters into string for labeling in figure.
 
@@ -567,9 +572,11 @@ def strGasParams(gasParams):
         Combined string for gas paraemters.
 
     """
-    return str(gasParams['l']) + 'cm ' + str(gasParams['c']) + ' ' + gasParams[
-        'gas'] + r' @ ' + str(
-        gasParams['p']) + 'hPa & ' + str(gasParams['t']) + 'K'
+    return str(gasParams['l']) + unitDict['l'] + ' ' + \
+           str(gasParams['c']) + {'V ratio': ' ', 'mol/m^3': 'mol/m$^3$ '}[
+               unitDict['c']] + gasParams['gas'] + r' @ ' + str(gasParams['p']) + \
+           unitDict['p'] + ' & ' \
+           + str(gasParams['t']) + unitDict['t']
 
 
 def csvOutput(csvFile, results):
@@ -649,6 +656,52 @@ def csvOutput(csvFile, results):
             for spectrum in spectra:
                 line += (str(spectrum[idx]) + ',')
             f.write(line[:-1] + '\n')
+
+
+def unitHandler(gasParams, unitDict):
+    """
+    Convert gas parameters with non-standard units to standard units that can be
+    used in calDAS and calWMS.
+
+    Parameters
+    ----------
+    gasParams: dict
+        Gas parameters contain gas (gas name), l (path length in cm),
+        c (concentration), t (temperature in K), p (pressure in hPa).
+    unitDict: dict
+        A dict has following keys: 'c', 'p', 't', 'l'.
+    Returns
+    -------
+    p: float
+        Pressure in atm.
+    t: float
+        Temperature in K.
+    l: float
+        Path length in cm.
+    c: float
+        Number density in molec/cm^3
+
+    """
+    # Pressure unit converstion
+    p0 = gasParams['p']
+    p = {'hPa': p0 / 1.013e3, 'kPa': p0 / 1.013e2, 'Torr': p0 / 760, 'atm': p0}[
+        unitDict['p']]
+
+    # Temperature unit conversion
+    t0 = gasParams['t']
+    t = {'K': t0, 'degC': t0 + 273.15, 'degF': (t0 + 459.67) * 5. / 9.}[
+        unitDict['t']]
+
+    # Path length unit conversion
+    l0 = gasParams['l']
+    l = {'cm': l0, 'm': 1e2 * l0, 'inch': 2.54 * l0}[unitDict['l']]
+
+    # Concentration unit conversion
+    c0 = gasParams['c']
+    c = {'V ratio': p * 1.013e5 / kb / t * 1e-6 * c0, 'mol/m^3': nA * c0 * 1e-6}[
+        unitDict['c']]
+
+    return p, t, l, c
 
 
 def main():

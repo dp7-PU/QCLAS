@@ -354,6 +354,22 @@ class AppWindow(QtGui.QMainWindow):
         self.leftTop.setLayout(vboxTop)
         self.leftBottom.setLayout(vboxBottom)
 
+    def genUnitDict(self):
+        """
+        Generate unit dict to be passed down to specCal.
+        Returns
+        -------
+        unitDict: dict
+            A dict has following keys: 'c', 'p', 't', 'l'
+        """
+        unitDict = {}
+        unitDict['c'] = str(self.scrollGasPanel.concUnit.currentText())
+        unitDict['p'] = str(self.scrollGasPanel.pressUnit.currentText())
+        unitDict['t'] = str(self.scrollGasPanel.tempUnit.currentText())
+        unitDict['l'] = str(self.scrollGasPanel.lengthUnit.currentText())
+
+        return unitDict
+
     def setCanvas(self):
         numPanel = self.numPanel.checkedId()
         self.grid = QtGui.QGridLayout()
@@ -424,6 +440,7 @@ class AppWindow(QtGui.QMainWindow):
     def calPlot(self):
         canvas = self.sender().parent()
         print canvas.index
+        unitDict = self.genUnitDict()
         nuMin = float(self.minNu.text())
         nuMax = float(self.maxNu.text())
         numPt = int(self.numPt.text())
@@ -434,7 +451,8 @@ class AppWindow(QtGui.QMainWindow):
         mode = self.comboWhatPlot.currentText()
         self.statusBar().showMessage('Calculating...')
         if self.specChecks.checkedId() == 1:
-            dasResults = specCal.calDas(gasParamsList, nu, profile, mode, iCut=iCut)
+            dasResults = specCal.calDas(gasParamsList, nu, profile, mode,
+                                        iCut=iCut, unitDict=unitDict)
             if type(dasResults) is str:
                 errorMessage = QtGui.QMessageBox()
                 errorMessage.setText(dasResults)
@@ -442,7 +460,8 @@ class AppWindow(QtGui.QMainWindow):
                 self.statusBar().showMessage(dasResults)
             else:
                 specCal.plotDas(canvas.axes, dasResults, mode,
-                                showTotal=self.plotTotalCheck.isChecked())
+                                showTotal=self.plotTotalCheck.isChecked(),
+                                unitDict=unitDict)
                 self.statusBar().showMessage('Done.')
             self.resultList[canvas.index] = dasResults
 
@@ -452,7 +471,7 @@ class AppWindow(QtGui.QMainWindow):
             nf = int(mode.replace('f', ''))
             if method == 'Theoretical':
                 wmsResults = specCal.calWms(gasParamsList, nu, profile, nf, method,
-                                            dNu=dNu)
+                                            dNu=dNu, unitDict=unitDict)
             else:
                 if self.laserSpec is None:
                     self.showError('No laser configuration.', 'Please go to Laser '
@@ -466,7 +485,8 @@ class AppWindow(QtGui.QMainWindow):
                                                   'tRamp']
                     wmsResults = specCal.calWms(gasParamsList, nu, profile, nf,
                                                 'Simulation with parameters',
-                                                laserSpec=self.laserSpec)
+                                                laserSpec=self.laserSpec,
+                                                unitDict=unitDict)
             if type(wmsResults) is str:
                 errorMessage = QtGui.QMessageBox()
                 errorMessage.setText(wmsResults)
@@ -485,13 +505,13 @@ class AppWindow(QtGui.QMainWindow):
     def exportData(self):
         canvas = self.sender().parent()
         filename, pat = QtGui.QFileDialog.getSaveFileNameAndFilter(self, "Export "
-                                                                        "data "
-                                                                    "to csv file",
-                                                              "output.csv",
-                                                              filter=self.tr("CSV "
-                                                                             "files (*.csv)"))
+                                                                         "data "
+                                                                         "to csv file",
+                                                                   "output.csv",
+                                                                   filter=self.tr(
+                                                                       "CSV "
+                                                                       "files (*.csv)"))
         specCal.csvOutput(filename, self.resultList[canvas.index])
-
 
     def updateCanvasGeometry(self):
         for canvas in self.canvasList:
