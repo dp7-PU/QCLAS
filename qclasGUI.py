@@ -495,7 +495,8 @@ class AppWindow(QtGui.QMainWindow):
             else:
                 self.statusBar().showMessage('Done.')
                 specCal.plotWms(canvas.axes, wmsResults,
-                                showTotal=self.plotTotalCheck.isChecked())
+                                showTotal=self.plotTotalCheck.isChecked(),
+                                unitDict=unitDict)
             self.resultList[canvas.index] = wmsResults
 
         canvas.figure.tight_layout()
