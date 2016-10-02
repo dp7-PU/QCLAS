@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 from scipy.integrate import simps, romb
 from scipy.signal import butter, lfilter
+import csv
 
 kb = 1.38064852e-23  # Boltzmann constant, m^2 kg s^-2 K^-1
 nA = 6.022e23  # Avogadro's number molec/mol-1
@@ -203,7 +204,7 @@ def calDas(gasList, nu, profile, mode, iCut=1e-30, xi_to_nden=True,
         result = dict()
         result['gasParams'] = gasParams
         result['nu'] = nu
-        result['coeff'] = coeff
+        result['spectrum'] = coeff
         results.append(result)
     return results
 
@@ -218,9 +219,9 @@ def plotDas(ax, results, mode, showTotal=True):
         Axis object for plotting.
     results: list of dict
         Results from calDas. Each dict in the list has keys of 'gasParams' (dict
-        given in input), 'nu' (wavelength array cm^-1), 'coeff' (spectrum coeff).
+        given in input), 'nu' (wavelength array cm^-1), 'spectrum' (spectrum spectrum).
     mode: str
-        Choose from 'Absorbance', 'Transmission', 'Absorb coeff'.
+        Choose from 'Absorbance', 'Transmission', 'Absorb spectrum'.
     showTotal: bool
         If True, plot the sum of given spectra.
 
@@ -232,20 +233,21 @@ def plotDas(ax, results, mode, showTotal=True):
     sumTrans = np.copy(sumAbsorp) + 1
 
     for idx, result in enumerate(results):
-        # resuls is a dict containing gasParameter, nu, and coeff
+        # resuls is a dict containing gasParameter, nu, and spectrum
         gasParams = result['gasParams']
         nu = result['nu']
-        coeff = result[
-            'coeff']  # coeff could be absorption coeff, absorbance, or transmittance
+        spectrum = result[
+            'spectrum']  # spectrum could be absorption spectrum, absorbance,
+        # or transmittance
         if mode == 'Absorp coeff':
-            ax.plot(nu, coeff, label=strGasParams(gasParams))
+            ax.plot(nu, spectrum, label=strGasParams(gasParams))
         elif mode == 'Absorbance':
-            ax.plot(nu, coeff, label=strGasParams(gasParams))
-            sumAbsorp = sumAbsorp + coeff
+            ax.plot(nu, spectrum, label=strGasParams(gasParams))
+            sumAbsorp = sumAbsorp + spectrum
             # print(strGasParams(gasParams))
         elif mode == 'Transmission':
-            ax.plot(nu, coeff, label=strGasParams(gasParams))
-            sumTrans = sumTrans * coeff
+            ax.plot(nu, spectrum, label=strGasParams(gasParams))
+            sumTrans = sumTrans * spectrum
         if idx == 0:
             ax.hold(True)
     if mode == 'Absorbance':
@@ -332,7 +334,7 @@ def calWms(gasList, nu, profile, nf, method='Theoretical', laserSpec=None, dNu=N
             return dasResults
         wmsResults = []
         for result in dasResults:
-            coeff = result['coeff']
+            coeff = result['spectrum']
             Hnf = []
             for iNu in nu:
                 u, du = np.linspace(-np.pi, np.pi, 2 ** 10 + 1, retstep=True)
@@ -396,7 +398,7 @@ def calWms(gasList, nu, profile, nf, method='Theoretical', laserSpec=None, dNu=N
             return dasResults
 
         for dasResult in dasResults:
-            coeff = dasResult['coeff']
+            coeff = dasResult['spectrum']
             modCoeff = np.interp(np.flipud(nuTotal), nu, coeff)
 
             S = intensity * modCoeff
@@ -566,8 +568,87 @@ def strGasParams(gasParams):
 
     """
     return str(gasParams['l']) + 'cm ' + str(gasParams['c']) + ' ' + gasParams[
-        'gas'] + r'@(' + str(
-        gasParams['p']) + 'hPa, ' + str(gasParams['t']) + 'K)'
+        'gas'] + r' @ ' + str(
+        gasParams['p']) + 'hPa & ' + str(gasParams['t']) + 'K'
+
+
+def csvOutput(csvFile, results):
+    """
+    Output spectra to the given csv file.
+    Parameters
+    ----------
+    csvFile: str
+        Output file name.
+    results: dict
+        Results from calWms or calDas.
+    specType: str
+        Choose between 'WMS' and 'DAS'.
+
+    Returns
+    -------
+    error: bool
+        If there's an error, will return True.
+    """
+    headers = []
+
+    # Generate a line for gas names
+    line = 'Gas:,'
+    for result in results:
+        line += (result['gasParams']['gas'] + ',')
+    headers.append(line[:-1])
+    print line
+
+    # Generate a line for path length
+    line = 'Path lenght (cm):,'
+    for result in results:
+        line += (str(result['gasParams']['l']) + ',')
+    headers.append(line[:-1])
+
+    # Generate a line for concentration
+    line = 'Conc. (volume ratio),'
+    for result in results:
+        line += (str(result['gasParams']['c']) + ',')
+    headers.append(line[:-1])
+
+    # Generate a line for pressure
+    line = 'Pressure (hPa),'
+    for result in results:
+        line += (str(result['gasParams']['p']) + ',')
+    headers.append(line[:-1])
+
+    # Genearte a line for temperature
+    line = 'Temperature (K),'
+    for result in results:
+        line += (str(result['gasParams']['t']) + ',')
+    headers.append(line[:-1])
+
+    # Separator
+    line = '--,'
+    for result in results:
+        line += ('--,')
+    headers.append(line[:-1])
+
+    line = 'Nu (cm^-1),'
+    for idx, result in enumerate(results):
+        line += ('spec' + str(idx) + ',')
+    headers.append(line[:-1])
+
+    nu = results[0]['nu']
+    print len(nu)
+    spectra = []
+    for result in results:
+        spectra.append(result['spectrum'])
+
+    print headers
+    print '!'
+    with open(csvFile, 'wb') as f:
+        for line in headers:
+            f.write(line + '\n')
+        for idx, n in enumerate(nu):
+            line = str(n) + ','
+            for spectrum in spectra:
+                line += (str(spectrum[idx]) + ',')
+            f.write(line[:-1] + '\n')
 
 
 def main():
@@ -578,6 +659,7 @@ def main():
     -------
 
     """
+
     hapi.db_begin_pickle('./Data')
     print 'specCal is package from spectroscopy calculation for QCL spectroscopy.'
 
