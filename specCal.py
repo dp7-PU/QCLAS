@@ -93,6 +93,7 @@ def mixRatio2molDen(c, p, T):
         Mol density in mol/m^3.
 
     """
+    sdfa = bc(sdf) * sdf
     m = p * 1.013e5 / R / T * c
     return m
 
